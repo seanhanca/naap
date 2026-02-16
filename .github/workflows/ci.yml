@@ -3,15 +3,18 @@
 # =============================================================================
 # Runs lint, typecheck, tests, and builds filtered by what actually changed.
 # Skips irrelevant jobs for faster PR feedback.
+#
+# Branch model: feature-branch-off-main (trunk-based).
+# All PRs target main. Vercel PR previews serve as staging.
 # =============================================================================
 
 name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -40,7 +43,7 @@ jobs:
       build_relevant: ${{ steps.filter.outputs.build_relevant }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run paths filter
         id: filter
@@ -89,11 +92,11 @@ jobs:
       - name: Detect changed plugins
         id: changed-plugins
         run: |
-          ALL_PLUGINS='["gateway-manager","orchestrator-manager","capacity-planner","network-analytics","community","marketplace","my-dashboard","my-wallet","daydream-video","developer-api","plugin-publisher"]'
+          ALL_PLUGINS='["capacity-planner","community","marketplace","developer-api","plugin-publisher"]'
           if [[ "${{ steps.filter.outputs.plugins }}" == "true" ]]; then
             # Build a JSON array of plugins that actually changed
             CHANGED="[]"
-            for plugin in gateway-manager orchestrator-manager capacity-planner network-analytics community marketplace my-dashboard my-wallet daydream-video developer-api plugin-publisher; do
+            for plugin in capacity-planner community marketplace developer-api plugin-publisher; do
               if git diff --name-only ${{ github.event.pull_request.base.sha || 'HEAD~1' }} HEAD -- "plugins/${plugin}/" | grep -q .; then
                 CHANGED=$(echo "$CHANGED" | jq -c ". + [\"${plugin}\"]")
               fi
@@ -113,10 +116,10 @@ jobs:
     if: needs.paths-filter.outputs.docs_only != 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -137,10 +140,10 @@ jobs:
     if: needs.paths-filter.outputs.docs_only != 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -166,10 +169,10 @@ jobs:
     if: needs.paths-filter.outputs.shell == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -181,7 +184,7 @@ jobs:
         run: cd apps/web-next && npm run test:coverage
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: apps/web-next/coverage/lcov.info
           flags: shell
@@ -198,10 +201,10 @@ jobs:
     if: needs.paths-filter.outputs.packages == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -217,7 +220,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload SDK coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: always()
         with:
           files: packages/plugin-sdk/coverage/lcov.info
@@ -237,23 +240,17 @@ jobs:
       fail-fast: false
       matrix:
         plugin:
-          - gateway-manager
-          - orchestrator-manager
           - capacity-planner
-          - network-analytics
           - community
           - marketplace
-          - my-dashboard
-          - my-wallet
-          - daydream-video
           - developer-api
           - plugin-publisher
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -295,20 +292,14 @@ jobs:
       fail-fast: false
       matrix:
         plugin:
-          - gateway-manager
-          - orchestrator-manager
           - capacity-planner
-          - network-analytics
           - community
           - marketplace
-          - my-dashboard
-          - my-wallet
-          - daydream-video
           - developer-api
           - plugin-publisher
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -327,7 +318,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.check.outputs.changed == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -356,7 +347,7 @@ jobs:
 
       - name: Upload plugin coverage
         if: steps.check.outputs.changed == 'true' && always()
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: plugins/${{ matrix.plugin }}/frontend/coverage/lcov.info
           flags: plugin-${{ matrix.plugin }}
@@ -376,10 +367,10 @@ jobs:
     if: needs.paths-filter.outputs.docs_only != 'true' && needs.paths-filter.outputs.build_relevant == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -389,14 +380,14 @@ jobs:
 
       - name: Restore plugin build cache
         id: plugin-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: dist/plugins
           key: ci-plugin-v1-${{ hashFiles('package-lock.json', 'plugins/**', 'packages/plugin-build/**', 'packages/plugin-utils/**') }}
 
       - name: Restore Next.js cache
         id: next-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: apps/web-next/.next/cache
           key: ci-next-v1-${{ hashFiles('package-lock.json', 'apps/web-next/**', 'next.config*', 'packages/database/**') }}
@@ -411,20 +402,20 @@ jobs:
 
       - name: Save plugin build cache
         if: steps.vercel-build.outcome == 'success'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: dist/plugins
           key: ci-plugin-v1-${{ hashFiles('package-lock.json', 'plugins/**', 'packages/plugin-build/**', 'packages/plugin-utils/**') }}
 
       - name: Save Next.js cache
         if: steps.vercel-build.outcome == 'success'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: apps/web-next/.next/cache
           key: ci-next-v1-${{ hashFiles('package-lock.json', 'apps/web-next/**', 'next.config*', 'packages/database/**') }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nextjs-build
           path: apps/web-next/.next
@@ -440,7 +431,7 @@ jobs:
     if: always() && !cancelled()
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Verify required files
         run: |
